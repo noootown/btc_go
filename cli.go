@@ -37,12 +37,11 @@ func (cli *CLI) Run() {
     "printchain", "reindexutxo", "send", "startnode",
   }
   var cmd []*flag.FlagSet
-  // cmd := make([]*flag.FlagSet, len(cmdOption))
   for _, c := range cmdOption {
     cmd = append(cmd, flag.NewFlagSet(c, flag.ExitOnError))
   }
   createBlockchainCmd := cmd[0]
-  // createWalletCmd :=  cmd[1]
+  createWalletCmd :=  cmd[1]
   // getBalanceCmd := cmd[2]
   // listAddressesCmd := cmd[3]
   // printChainCmd := cmd[4]
@@ -78,9 +77,9 @@ func (cli *CLI) Run() {
       createBlockchainCmd.Usage()
       os.Exit(1)
     }
-    // if !ValidateAddress(address) {
-    //   log.Panic("ERROR: Address is not valid")
-    // }
+    if !isAddressValid(*createBlockchainAddress) {
+      log.Panic("ERROR: Address is not valid")
+    }
     bc := createBlockchainDB(*createBlockchainAddress, nodeID)
     defer bc.db.Close()
     // UTXOSet := UTXOSet{bc}
@@ -99,10 +98,13 @@ func (cli *CLI) Run() {
   // }
   //
   //
-  // if createWalletCmd.Parsed() {
-  //   cli.createWallet(nodeID)
-  // }
-  //
+  if createWalletCmd.Parsed() {
+    wallets, _ := NewWallets(nodeID)
+    address := wallets.CreateWallet()
+    wallets.SaveToFile(nodeID)
+    fmt.Printf("Your new address: %s\n", address)
+  }
+
   // if listAddressesCmd.Parsed() {
   //   cli.listAddresses(nodeID)
   // }
