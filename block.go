@@ -55,3 +55,12 @@ func (b *Block) Serialize() []byte {
   }
   return result.Bytes()
 }
+
+func DeserializeBlock(d []byte) *Block {
+  var block Block
+  err := gob.NewDecoder(bytes.NewReader(d)).Decode(&block)
+  if err != nil {
+    log.Panic(err)
+  }
+  return &block
+}

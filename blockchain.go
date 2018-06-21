@@ -5,6 +5,7 @@ import (
   "fmt"
   "os"
   "log"
+  "encoding/hex"
 )
 
 const dbFile = "blockchain_%s.db"
@@ -18,7 +19,7 @@ type Blockchain struct {
 
 func createBlockchainDB(address, nodeID string) *Blockchain{
   dbFile := fmt.Sprintf(dbFile, nodeID)
-  if IsDBExist(dbFile) {
+  if IsFileExist(dbFile) {
     fmt.Println("Blockchain already exists.")
     os.Exit(1)
   }
@@ -53,32 +54,65 @@ func createBlockchainDB(address, nodeID string) *Blockchain{
   if err != nil {
     log.Panic(err)
   }
-  bc := Blockchain{tip, db}
-  return &bc
+  return &Blockchain{tip, db}
 }
 
-// func NewBlockchain(nodeID string) *Blockchain {
-//   dbFile := fmt.Sprintf(dbFile, nodeID)
-//   if !IsDBExist(dbFile) {
-//     fmt.Println("No existing blockchain found. Create one first.")
-//     os.Exit(1)
-//   }
-//   var tip []byte
-//   db, err := bolt.Open(dbFile, 0600, nil)
-//   if err != nil {
-//     log.Panic(err)
-//   }
-//   err = db.Update(func(tx *bolt.Tx) error { // ???bolt.Tx
-//     tip = tx.Bucket([]byte(blocksBucket)).Get([]byte("l"))
-//     return nil
-//   })
-//   if err != nil {
-//     log.Panic(err)
-//   }
-//   return &Blockchain{tip, db}
-// }
+func NewBlockchain(nodeID string) *Blockchain {
+  dbFile := fmt.Sprintf(dbFile, nodeID)
+  if !IsFileExist(dbFile) {
+    fmt.Println("No existing blockchain found. Create one first.")
+    os.Exit(1)
+  }
 
-func IsDBExist(dbfile string) bool{
-  _, err := os.Stat(dbfile)
-  return !os.IsNotExist(err)
+  var tip []byte
+  db, err := bolt.Open(dbFile, 0600, nil)
+  if err != nil {
+    log.Panic(err)
+  }
+
+  err = db.Update(func(tx *bolt.Tx) error {
+    tip = tx.Bucket([]byte(blocksBucket)).Get([]byte("l"))
+    return nil
+  })
+  if err != nil {
+    log.Panic(err)
+  }
+
+  return &Blockchain{tip, db}
+}
+
+func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
+  UTXO := make(map[string]TXOutputs)
+  spentTXOs := make(map[string][]int)
+  bci := NewBlockchainIterator(bc)
+  block := bci.Next()
+
+  for len(block.PrevBlockHash) == 0 {
+    for _, tx := range block.Transactions {
+      txID := hex.EncodeToString(tx.ID)
+
+    Outputs:
+      for outIdx, out := range tx.Vout {
+        if spentTXOs[txID] != nil {
+          for _, spentOutIdx := range spentTXOs[txID] {
+            if spentOutIdx == outIdx {
+              continue Outputs
+            }
+          }
+        }
+        outs := UTXO[txID]
+        outs.Outputs = append(outs.Outputs, out)
+        UTXO[txID] = outs
+      }
+
+      if !tx.IsCoinbase() {
+        for _, in := range tx.Vin {
+          inTxID := hex.EncodeToString(in.TXid)
+          spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Vout)
+        }
+      }
+    }
+    block = bci.Next()
+  }
+  return UTXO
 }

@@ -5,6 +5,7 @@ import (
   "encoding/binary"
   "log"
   "math/big"
+  "os"
 )
 
 var b58Alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
@@ -56,3 +57,9 @@ func Base58Decode(data []byte) []byte{
   }
   return decoded
 }
+
+func IsFileExist(file string) bool{
+  _, err := os.Stat(file)
+  return !os.IsNotExist(err)
+}
+

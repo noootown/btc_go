@@ -4,6 +4,7 @@ import (
   "bytes"
   "encoding/gob"
   "log"
+  "crypto/sha256"
 )
 
 const subsidy = 10
@@ -22,10 +23,20 @@ func NewCoinbaseTX(address, data string) *Transaction{
 
   txin := TXInput{[]byte{}, -1, nil, []byte(data)}
   txout := NewTXOutput(subsidy, address)
-  return &Transaction{nil, []TXInput{txin}, []TXOutput{*txout}}
+  tx := Transaction{nil, []TXInput{txin}, []TXOutput{*txout}}
+  tx.ID = tx.Hash()
+  return &tx
 }
 
-func (tx Transaction) IsCoinBase() bool {
+func (tx *Transaction) Hash() []byte {
+  var hash [32]byte
+  txCopy := *tx
+  txCopy.ID = []byte{}
+  hash = sha256.Sum256(txCopy.Serialize())
+  return hash[:]
+}
+
+func (tx Transaction) IsCoinbase() bool {
   return len(tx.Vin) == 1 && len(tx.Vin[0].TXid) == 0 && tx.Vin[0].Vout == -1
 }
 

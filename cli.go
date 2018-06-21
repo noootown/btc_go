@@ -42,14 +42,14 @@ func (cli *CLI) Run() {
   }
   createBlockchainCmd := cmd[0]
   createWalletCmd :=  cmd[1]
-  // getBalanceCmd := cmd[2]
+  getBalanceCmd := cmd[2]
   // listAddressesCmd := cmd[3]
   // printChainCmd := cmd[4]
   // reindexUTXOCmd := cmd[5]
   // sendCmd := cmd[6]
   // startNodeCmd := cmd[7]
 
-  // getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
+  getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
   createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send genesis block reward to")
   // sendFrom := sendCmd.String("from", "", "Source wallet address")
   // sendTo := sendCmd.String("to", "", "Destination wallet address")
@@ -73,31 +73,48 @@ func (cli *CLI) Run() {
   }
 
   if createBlockchainCmd.Parsed() {
-    if *createBlockchainAddress == "" {
+    address := *createBlockchainAddress
+    if address == "" {
       createBlockchainCmd.Usage()
       os.Exit(1)
     }
-    if !isAddressValid(*createBlockchainAddress) {
+    if !IsAddressValid(address) {
       log.Panic("ERROR: Address is not valid")
     }
-    bc := createBlockchainDB(*createBlockchainAddress, nodeID)
+    bc := createBlockchainDB(address, nodeID)
     defer bc.db.Close()
-    // UTXOSet := UTXOSet{bc}
-    // UTXOSet.Reindex()
+    UTXOSet := UTXOSet{bc}
+    UTXOSet.Reindex()
 
-    fmt.Println("Done!")
+    fmt.Printf("Done with creating blockchain with genesis block at address %s!\n", address)
   }
 
   // getBalance
-  // if getBalanceCmd.Parsed() {
-  //   if *getBalanceAddress == "" {
-  //     getBalanceCmd.Usage()
-  //     os.Exit(1)
-  //   }
-  //   cli.getBalance(*getBalanceAddress, nodeID)
-  // }
-  //
-  //
+  if getBalanceCmd.Parsed() {
+    address := *getBalanceAddress
+    if address == "" {
+      getBalanceCmd.Usage()
+      os.Exit(1)
+    }
+    if !IsAddressValid(address) {
+      log.Panic("ERROR: Address is not valid")
+    }
+    bc := NewBlockchain(nodeID)
+    UTXOSet := UTXOSet{bc}
+    defer bc.db.Close()
+
+    balance := 0
+    pubKeyHash := Base58Decode([]byte(address))
+    pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+    UTXOs := UTXOSet.FindUTXO(pubKeyHash)
+
+    for _, out := range UTXOs {
+      balance += out.Value
+    }
+    fmt.Printf("Balance of '%s': %d\n", address, balance)
+  }
+
+
   if createWalletCmd.Parsed() {
     wallets, _ := NewWallets(nodeID)
     address := wallets.CreateWallet()
