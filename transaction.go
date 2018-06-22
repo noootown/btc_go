@@ -5,6 +5,8 @@ import (
   "encoding/gob"
   "log"
   "crypto/sha256"
+  "fmt"
+  "strings"
 )
 
 const subsidy = 10
@@ -47,4 +49,26 @@ func (tx Transaction) Serialize() []byte{
     log.Panic(err)
   }
   return result.Bytes()
+}
+
+func (tx Transaction) String() string {
+  var lines []string
+
+  lines = append(lines, fmt.Sprintf("--- Transaction %x:", tx.ID))
+
+  for i, input := range tx.Vin {
+    lines = append(lines, fmt.Sprintf("     Input %d:", i))
+    lines = append(lines, fmt.Sprintf("       TXID:      %x", input.TXid))
+    lines = append(lines, fmt.Sprintf("       Out:       %d", input.Vout))
+    lines = append(lines, fmt.Sprintf("       Signature: %x", input.Signature))
+    lines = append(lines, fmt.Sprintf("       PubKey:    %x", input.PubKey))
+  }
+
+  for i, output := range tx.Vout {
+    lines = append(lines, fmt.Sprintf("     Output %d:", i))
+    lines = append(lines, fmt.Sprintf("       Value:  %d", output.Value))
+    lines = append(lines, fmt.Sprintf("       Script: %x", output.PubKeyHash))
+  }
+
+  return strings.Join(lines, "\n")
 }

@@ -5,6 +5,7 @@ import (
   "fmt"
   "flag"
   "log"
+  "strconv"
 )
 
 type CLI struct {}
@@ -43,8 +44,8 @@ func (cli *CLI) Run() {
   createBlockchainCmd := cmd[0]
   createWalletCmd :=  cmd[1]
   getBalanceCmd := cmd[2]
-  // listAddressesCmd := cmd[3]
-  // printChainCmd := cmd[4]
+  listAddressesCmd := cmd[3]
+  printChainCmd := cmd[4]
   // reindexUTXOCmd := cmd[5]
   // sendCmd := cmd[6]
   // startNodeCmd := cmd[7]
@@ -89,7 +90,6 @@ func (cli *CLI) Run() {
     fmt.Printf("Done with creating blockchain with genesis block at address %s!\n", address)
   }
 
-  // getBalance
   if getBalanceCmd.Parsed() {
     address := *getBalanceAddress
     if address == "" {
@@ -114,7 +114,6 @@ func (cli *CLI) Run() {
     fmt.Printf("Balance of '%s': %d\n", address, balance)
   }
 
-
   if createWalletCmd.Parsed() {
     wallets, _ := NewWallets(nodeID)
     address := wallets.CreateWallet()
@@ -122,14 +121,39 @@ func (cli *CLI) Run() {
     fmt.Printf("Your new address: %s\n", address)
   }
 
-  // if listAddressesCmd.Parsed() {
-  //   cli.listAddresses(nodeID)
-  // }
-  //
-  // if printChainCmd.Parsed() {
-  //   cli.printChain(nodeID)
-  // }
-  //
+  if listAddressesCmd.Parsed() {
+    wallets, err := NewWallets(nodeID)
+    if err != nil {
+      log.Panic(err)
+    }
+    addresses := wallets.GetAddresses()
+
+    for _, address := range addresses {
+      fmt.Println(address)
+    }
+  }
+
+  if printChainCmd.Parsed() {
+    bc := NewBlockchain(nodeID)
+    bci := bc.Iterator()
+    defer bc.db.Close()
+    for {
+      block := bci.Next()
+      fmt.Printf("============ Block %x ============\n", block.Hash)
+      // fmt.Printf("Height: %d\n", block.Height)
+      fmt.Printf("Prev. block: %x\n", block.PrevBlockHash)
+      pow := NewProofOfWork(block)
+      fmt.Printf("PoW: %s\n\n", strconv.FormatBool(pow.Validate()))
+      for _, tx := range block.Transactions {
+        fmt.Println(tx)
+      }
+      fmt.Printf("\n\n")
+      if len(block.PrevBlockHash) == 0 {
+        break
+      }
+    }
+  }
+
   // if reindexUTXOCmd.Parsed() {
   //   cli.reindexUTXO(nodeID)
   // }

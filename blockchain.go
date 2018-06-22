@@ -84,10 +84,9 @@ func NewBlockchain(nodeID string) *Blockchain {
 func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
   UTXO := make(map[string]TXOutputs)
   spentTXOs := make(map[string][]int)
-  bci := NewBlockchainIterator(bc)
-  block := bci.Next()
-
-  for len(block.PrevBlockHash) == 0 {
+  bci := bc.Iterator()
+  for {
+    block := bci.Next()
     for _, tx := range block.Transactions {
       txID := hex.EncodeToString(tx.ID)
 
@@ -112,7 +111,33 @@ func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
         }
       }
     }
-    block = bci.Next()
+    if len(block.PrevBlockHash) == 0 {
+      break
+    }
   }
   return UTXO
 }
+
+type BlockchainIterator struct {
+  blockchain *Blockchain
+  currentHash []byte
+}
+
+func (bci *BlockchainIterator) Next() *Block {
+  var block *Block
+
+  err := bci.blockchain.db.View(func(tx *bolt.Tx) error {
+    block = DeserializeBlock(tx.Bucket([]byte(blocksBucket)).Get(bci.currentHash))
+    return nil
+  })
+  if err != nil {
+    log.Panic(err)
+  }
+  bci.currentHash = block.PrevBlockHash
+  return block
+}
+
+func (bc *Blockchain) Iterator() *BlockchainIterator {
+  return &BlockchainIterator{bc, bc.tip}
+}
+
