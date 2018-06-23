@@ -23,6 +23,10 @@ func (ws *Wallets) CreateWallet() string {
   return address
 }
 
+func (ws *Wallets) GetWallet(address string) Wallet {
+  return *ws.Wallets[address]
+}
+
 func (ws *Wallets) GetAddresses() []string {
   var addresses []string
 
@@ -54,30 +58,6 @@ func NewWallets(nodeID string) (*Wallets, error) {
   }
 
   return &wallets, nil
-}
-
-func (ws *Wallets) LoadFromFile(nodeID string) error {
-  walletFile := fmt.Sprintf(walletFile, nodeID)
-  if _, err := os.Stat(walletFile); os.IsNotExist(err) {
-    return err
-  }
-
-  fileContent, err := ioutil.ReadFile(walletFile)
-  if err != nil {
-    log.Panic(err)
-  }
-
-  var wallets Wallets
-  gob.Register(elliptic.P256())
-  decoder := gob.NewDecoder(bytes.NewReader(fileContent))
-  err = decoder.Decode(&wallets)
-  if err != nil {
-    log.Panic(err)
-  }
-
-  ws.Wallets = wallets.Wallets
-
-  return nil
 }
 
 func (ws *Wallets) SaveToFile(nodeID string) { // ?????

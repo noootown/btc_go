@@ -46,17 +46,17 @@ func (cli *CLI) Run() {
   getBalanceCmd := cmd[2]
   listAddressesCmd := cmd[3]
   printChainCmd := cmd[4]
-  // reindexUTXOCmd := cmd[5]
-  // sendCmd := cmd[6]
+  reindexUTXOCmd := cmd[5]
+  sendCmd := cmd[6]
   // startNodeCmd := cmd[7]
 
   getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
   createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send genesis block reward to")
-  // sendFrom := sendCmd.String("from", "", "Source wallet address")
-  // sendTo := sendCmd.String("to", "", "Destination wallet address")
-  // sendAmount := sendCmd.Int("amount", 0, "Amount to send")
-  // sendMine := sendCmd.Bool("mine", false, "Mine immediately on the same node")
-  // startNodeMiner := startNodeCmd.String("miner", "", "Enable mining mode and send reward to ADDRESS")
+  sendFrom := sendCmd.String("from", "", "Source wallet address")
+  sendTo := sendCmd.String("to", "", "Destination wallet address")
+  sendAmount := sendCmd.Int("amount", 0, "Amount to send")
+  sendMine := sendCmd.Bool("mine", false, "Mine immediately on the same node")
+  // minerAddress := startNodeCmd.String("miner", "", "Enable mining mode and send reward to ADDRESS")
   isDone := false
   for i, c := range cmdOption {
     if os.Args[1] == c {
@@ -154,24 +154,61 @@ func (cli *CLI) Run() {
     }
   }
 
-  // if reindexUTXOCmd.Parsed() {
-  //   cli.reindexUTXO(nodeID)
-  // }
-  //
-  // if sendCmd.Parsed() {
-  //   if *sendFrom == "" || *sendTo == "" || *sendAmount <= 0 {
-  //     sendCmd.Usage()
-  //     os.Exit(1)
-  //   }
-  //   cli.send(*sendFrom, *sendTo, *sendAmount, nodeID, *sendMine)
-  // }
-  //
+  if reindexUTXOCmd.Parsed() {
+    bc := NewBlockchain(nodeID)
+    UTXOSet := UTXOSet{bc}
+    UTXOSet.Reindex()
+
+    fmt.Printf("Done! There are %d transactions in the UTXO set.\n", UTXOSet.CountTransactions())
+  }
+
+  if sendCmd.Parsed() {
+    from, to, amount, mineNow := *sendFrom, *sendTo, *sendAmount, *sendMine
+    if from == "" || to == "" || amount <= 0 {
+      sendCmd.Usage()
+      os.Exit(1)
+    }
+    if !IsAddressValid(from) {
+      log.Panic("ERROR: Sender address is not valid")
+    }
+    if !IsAddressValid(to) {
+      log.Panic("ERROR: Recipient address is not valid")
+    }
+
+    bc := NewBlockchain(nodeID)
+    UTXOSet := UTXOSet{bc}
+    defer bc.db.Close()
+
+    wallets, err := NewWallets(nodeID)
+    if err != nil {
+      log.Panic(err)
+    }
+    wallet := wallets.GetWallet(from)
+    tx := NewUTXOTransaction(&wallet, to, amount, &UTXOSet)
+    if mineNow {
+      txs := []*Transaction{NewCoinbaseTX(from, ""), tx}
+
+      UTXOSet.Update(bc.MineBlock(txs))
+    } else {
+      // todo
+      // sendTx(knownNodes[0], tx)
+    }
+  }
+
   // if startNodeCmd.Parsed() {
   //   nodeID := os.Getenv("NODE_ID")
   //   if nodeID == "" {
   //     startNodeCmd.Usage()
   //     os.Exit(1)
   //   }
-  //   cli.startNode(nodeID, *startNodeMiner)
+  //   fmt.Printf("Starting node %s\n", nodeID)
+  //   if len(*minerAddress) > 0 {
+  //     if IsAddressValid(*minerAddress) {
+  //       fmt.Println("Mining is on. Address to receive rewards: ", minerAddress)
+  //     } else {
+  //       log.Panic("Wrong miner address!")
+  //     }
+  //   }
+  //   StartServer(nodeID, minerAddress)
   // }
 }

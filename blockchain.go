@@ -6,6 +6,9 @@ import (
   "os"
   "log"
   "encoding/hex"
+  "crypto/ecdsa"
+  "bytes"
+  "errors"
 )
 
 const dbFile = "blockchain_%s.db"
@@ -81,6 +84,37 @@ func NewBlockchain(nodeID string) *Blockchain {
   return &Blockchain{tip, db}
 }
 
+func (bc *Blockchain) FindTransaction(ID []byte) (Transaction, error) {
+  bci := bc.Iterator()
+
+  for {
+    block := bci.Next()
+    for _, tx := range block.Transactions {
+      if bytes.Compare(tx.ID, ID) == 0 {
+        return *tx, nil
+      }
+    }
+    if len(block.PrevBlockHash) == 0 {
+      break
+    }
+  }
+  return Transaction{}, errors.New("Transaction is not found")
+}
+
+func (bc *Blockchain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
+  prevTXs := make(map[string]Transaction)
+
+  for _, vin := range tx.Vin {
+    prevTX, err := bc.FindTransaction(vin.TXid)
+    if err != nil {
+      log.Panic(err)
+    }
+    prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX
+  }
+
+  tx.Sign(privKey, prevTXs)
+}
+
 func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
   UTXO := make(map[string]TXOutputs)
   spentTXOs := make(map[string][]int)
@@ -141,3 +175,39 @@ func (bc *Blockchain) Iterator() *BlockchainIterator {
   return &BlockchainIterator{bc, bc.tip}
 }
 
+func (bc *Blockchain) MineBlock(txs []*Transaction) *Block{
+  var tip []byte
+  // var lastHeight int
+
+  err := bc.db.View(func(tx *bolt.Tx) error {
+    b := tx.Bucket([]byte(blocksBucket))
+    tip = b.Get([]byte("l"))
+
+    return nil
+  })
+  if err != nil {
+    log.Panic(err)
+  }
+  newBlock := NewBlock(txs, tip)
+
+  err = bc.db.Update(func(tx *bolt.Tx) error {
+    b := tx.Bucket([]byte(blocksBucket))
+    err := b.Put(newBlock.Hash, newBlock.Serialize())
+    if err != nil {
+      log.Panic(err)
+    }
+
+    err = b.Put([]byte("l"), newBlock.Hash)
+    if err != nil {
+      log.Panic(err)
+    }
+
+    bc.tip = newBlock.Hash
+
+    return nil
+  })
+  if err != nil {
+    log.Panic(err)
+  }
+  return newBlock
+}
