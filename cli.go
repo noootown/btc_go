@@ -18,7 +18,9 @@ func (cli *CLI) printUsage() {
     printchain - Print all the blocks of the blockchain
     reindexutxo - Rebuilds the UTXO set
     send -from FROM -to TO -amount AMOUNT -mine - Send AMOUNT of coins from FROM address to TO. Mine on the same node, when -mine is set.
-    startnode -miner ADDRESS - Start a node with ID specified in NODE_ID env. var. -miner enables mining`)
+    startnode -miner ADDRESS - Start a node with ID specified in NODE_ID env. var. -miner enables mining
+    listbalance - Lists balance of addresses from the wallet file
+  `)
 }
 
 func (cli *CLI) Run() {
@@ -35,7 +37,7 @@ func (cli *CLI) Run() {
 
   cmdOption := []string{
     "createblockchain", "createwallet", "getbalance", "listaddresses",
-    "printchain", "reindexutxo", "send", "startnode",
+    "printchain", "reindexutxo", "send", "startnode", "listbalance",
   }
   var cmd []*flag.FlagSet
   for _, c := range cmdOption {
@@ -49,6 +51,7 @@ func (cli *CLI) Run() {
   reindexUTXOCmd := cmd[5]
   sendCmd := cmd[6]
   // startNodeCmd := cmd[7]
+  listBalanceCmd := cmd[8]
 
   getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
   createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send genesis block reward to")
@@ -211,4 +214,26 @@ func (cli *CLI) Run() {
   //   }
   //   StartServer(nodeID, minerAddress)
   // }
+  if listBalanceCmd.Parsed() {
+    wallets, err := NewWallets(nodeID)
+    if err != nil {
+      log.Panic(err)
+    }
+    addresses := wallets.GetAddresses()
+    bc := NewBlockchain(nodeID)
+    UTXOSet := UTXOSet{bc}
+    defer bc.db.Close()
+
+    for _, address := range addresses {
+      balance := 0
+      pubKeyHash := Base58Decode([]byte(address))
+      pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+      UTXOs := UTXOSet.FindUTXO(pubKeyHash)
+
+      for _, out := range UTXOs {
+        balance += out.Value
+      }
+      fmt.Printf("%s: %d\n", address, balance)
+    }
+  }
 }

@@ -21,10 +21,15 @@ type Transaction struct {
 }
 
 func NewCoinbaseTX(address, data string) *Transaction{
-  // todo
-  // if data == "" {
-  //
-  // }
+  if data == "" {
+    randData := make([]byte, 20)
+    _, err := rand.Read(randData)
+    if err != nil {
+      log.Panic(err)
+    }
+
+    data = fmt.Sprintf("%x", randData)
+  }
 
   txin := TXInput{[]byte{}, -1, nil, []byte(data)}
   txout := NewTXOutput(subsidy, address)

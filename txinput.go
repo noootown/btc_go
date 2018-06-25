@@ -6,5 +6,3 @@ type TXInput struct {
   Signature []byte
   PubKey []byte
 }
-
-
