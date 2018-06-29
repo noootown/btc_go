@@ -6,6 +6,7 @@ import (
   "log"
   "math/big"
   "os"
+	"encoding/gob"
 )
 
 var b58Alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
@@ -63,3 +64,18 @@ func IsFileExist(file string) bool{
   return !os.IsNotExist(err)
 }
 
+func gobEncode(data interface{}) []byte {
+	var buff bytes.Buffer
+	err := gob.NewEncoder(&buff).Encode(data)
+	if err != nil {
+		log.Panic(err)
+	}
+	return buff.Bytes()
+}
+
+func gobDecode(data [] byte, e interface{}) {
+  err := gob.NewDecoder(bytes.NewReader(data)).Decode(&e)
+  if err != nil {
+   log.Panic(err)
+  }
+}

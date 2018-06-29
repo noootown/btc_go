@@ -1,9 +1,7 @@
 package main
 
 import (
-  "encoding/gob"
   "bytes"
-  "log"
 )
 
 type TXOutput struct {
@@ -26,19 +24,11 @@ type TXOutputs struct {
 }
 
 func (out *TXOutputs) Serialize() []byte {
-  var result bytes.Buffer
-  err := gob.NewEncoder(&result).Encode(out)
-  if err != nil {
-    log.Panic(err)
-  }
-  return result.Bytes()
+  return gobEncode(out)
 }
 
-func DeserializeOutputs (data []byte) TXOutputs {
+func DeserializeOutputs(data []byte) TXOutputs {
   var outputs TXOutputs
-  err := gob.NewDecoder(bytes.NewReader(data)).Decode(&outputs)
-  if err != nil {
-    log.Panic(err)
-  }
+  gobDecode(data, &outputs)
   return outputs
 }

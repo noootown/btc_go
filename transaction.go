@@ -1,8 +1,6 @@
 package main
 
 import (
-  "bytes"
-  "encoding/gob"
   "log"
   "crypto/sha256"
   "fmt"
@@ -89,12 +87,13 @@ func (tx Transaction) IsCoinbase() bool {
 }
 
 func (tx Transaction) Serialize() []byte{
-  var result bytes.Buffer
-  err := gob.NewEncoder(&result).Encode(tx)
-  if err != nil {
-    log.Panic(err)
-  }
-  return result.Bytes()
+  return gobEncode(tx)
+}
+
+func DeserializeTransaction(data []byte) Transaction {
+  var tx Transaction
+  gobDecode(data, &tx)
+  return tx
 }
 
 func (tx Transaction) String() string {

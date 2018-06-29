@@ -158,7 +158,7 @@ type BlockchainIterator struct {
 }
 
 func (bci *BlockchainIterator) Next() *Block {
-  var block *Block
+  var block Block
 
   err := bci.blockchain.db.View(func(tx *bolt.Tx) error {
     block = DeserializeBlock(tx.Bucket([]byte(blocksBucket)).Get(bci.currentHash))
@@ -168,7 +168,7 @@ func (bci *BlockchainIterator) Next() *Block {
     log.Panic(err)
   }
   bci.currentHash = block.PrevBlockHash
-  return block
+  return &block
 }
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {
@@ -177,18 +177,19 @@ func (bc *Blockchain) Iterator() *BlockchainIterator {
 
 func (bc *Blockchain) MineBlock(txs []*Transaction) *Block{
   var tip []byte
-  // var lastHeight int
+  var lastHeight int
 
   err := bc.db.View(func(tx *bolt.Tx) error {
     b := tx.Bucket([]byte(blocksBucket))
     tip = b.Get([]byte("l"))
+    lastHeight = DeserializeBlock(b.Get(tip)).Height
 
     return nil
   })
   if err != nil {
     log.Panic(err)
   }
-  newBlock := NewBlock(txs, tip)
+  newBlock := NewBlock(txs, tip, lastHeight+1)
 
   err = bc.db.Update(func(tx *bolt.Tx) error {
     b := tx.Bucket([]byte(blocksBucket))
@@ -210,4 +211,33 @@ func (bc *Blockchain) MineBlock(txs []*Transaction) *Block{
     log.Panic(err)
   }
   return newBlock
+}
+
+func (bc *Blockchain) GetBestHeight() int{
+  var lastBlock Block
+
+  err := bc.db.View(func(tx *bolt.Tx) error {
+    b := tx.Bucket([]byte(blocksBucket))
+    lastBlock = DeserializeBlock(b.Get(b.Get([]byte("l"))))
+    return nil
+  })
+  if err != nil {
+    log.Panic(err)
+  }
+
+  return lastBlock.Height
+}
+
+func (bc *Blockchain) GetBlockHashes() [][]byte {
+  var blocks [][]byte
+  bci := bc.Iterator()
+
+  for {
+    block := bci.Next()
+    blocks = append(blocks, block.Hash)
+    if len(block.PrevBlockHash) == 0 {
+      break
+    }
+  }
+  return blocks
 }

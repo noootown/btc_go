@@ -50,7 +50,7 @@ func (cli *CLI) Run() {
   printChainCmd := cmd[4]
   reindexUTXOCmd := cmd[5]
   sendCmd := cmd[6]
-  // startNodeCmd := cmd[7]
+  startNodeCmd := cmd[7]
   listBalanceCmd := cmd[8]
 
   getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
@@ -59,7 +59,7 @@ func (cli *CLI) Run() {
   sendTo := sendCmd.String("to", "", "Destination wallet address")
   sendAmount := sendCmd.Int("amount", 0, "Amount to send")
   sendMine := sendCmd.Bool("mine", false, "Mine immediately on the same node")
-  // minerAddress := startNodeCmd.String("miner", "", "Enable mining mode and send reward to ADDRESS")
+  minerAddress := startNodeCmd.String("miner", "", "Enable mining mode and send reward to ADDRESS")
   isDone := false
   for i, c := range cmdOption {
     if os.Args[1] == c {
@@ -194,26 +194,26 @@ func (cli *CLI) Run() {
       UTXOSet.Update(bc.MineBlock(txs))
     } else {
       // todo
-      // sendTx(knownNodes[0], tx)
+      //sendTx(knownNodes[0], tx)
     }
   }
 
-  // if startNodeCmd.Parsed() {
-  //   nodeID := os.Getenv("NODE_ID")
-  //   if nodeID == "" {
-  //     startNodeCmd.Usage()
-  //     os.Exit(1)
-  //   }
-  //   fmt.Printf("Starting node %s\n", nodeID)
-  //   if len(*minerAddress) > 0 {
-  //     if IsAddressValid(*minerAddress) {
-  //       fmt.Println("Mining is on. Address to receive rewards: ", minerAddress)
-  //     } else {
-  //       log.Panic("Wrong miner address!")
-  //     }
-  //   }
-  //   StartServer(nodeID, minerAddress)
-  // }
+  if startNodeCmd.Parsed() {
+    nodeID := os.Getenv("NODE_ID")
+    if nodeID == "" {
+      startNodeCmd.Usage()
+      os.Exit(1)
+    }
+    fmt.Printf("Starting node %s\n", nodeID)
+    if len(*minerAddress) > 0 {
+      if IsAddressValid(*minerAddress) {
+        fmt.Println("Mining is on. Address to receive rewards: ", minerAddress)
+      } else {
+        log.Panic("Wrong miner address!")
+      }
+    }
+    StartServer(nodeID, *minerAddress)
+  }
   if listBalanceCmd.Parsed() {
     wallets, err := NewWallets(nodeID)
     if err != nil {
