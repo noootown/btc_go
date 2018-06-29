@@ -7,6 +7,7 @@ import (
   "math/big"
   "os"
 	"encoding/gob"
+  "reflect"
 )
 
 var b58Alphabet = []byte("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
@@ -74,8 +75,8 @@ func gobEncode(data interface{}) []byte {
 }
 
 func gobDecode(data [] byte, e interface{}) {
-  err := gob.NewDecoder(bytes.NewReader(data)).Decode(&e)
+  err := gob.NewDecoder(bytes.NewReader(data)).DecodeValue(reflect.ValueOf(e))
   if err != nil {
-   log.Panic(err)
+    log.Panic(err)
   }
 }

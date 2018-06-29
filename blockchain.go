@@ -223,6 +223,22 @@ func (bc *Blockchain) GetBestHeight() int{
   return lastBlock.Height
 }
 
+func (bc *Blockchain) GetBlock(blockHash []byte) (Block, error) {
+  var block Block
+  err := bc.db.View(func(tx *bolt.Tx) error {
+    blockData := tx.Bucket([]byte(blocksBucket)).Get(blockHash)
+    if blockData == nil {
+      return errors.New("Block is not found.")
+    }
+    block = DeserializeBlock(blockData)
+    return nil
+  })
+  if err != nil {
+    return block, err
+  }
+  return block, nil
+}
+
 func (bc *Blockchain) GetBlockHashes() [][]byte {
   var blocks [][]byte
   bci := bc.Iterator()
@@ -232,4 +248,34 @@ func (bc *Blockchain) GetBlockHashes() [][]byte {
     blocks = append(blocks, block.Hash)
   }
   return blocks
+}
+
+func (bc *Blockchain) AddBlock(block *Block) {
+  err := bc.db.Update(func(tx *bolt.Tx) error {
+    b := tx.Bucket([]byte(blocksBucket))
+    blockInDb := b.Get(block.Hash)
+
+    if blockInDb != nil {
+      return nil
+    }
+
+    err := b.Put(block.Hash, block.Serialize())
+    if err != nil {
+      log.Panic(err)
+    }
+
+    lastBlock := DeserializeBlock(b.Get(b.Get([]byte("l"))))
+
+    if block.Height > lastBlock.Height {
+      err = b.Put([]byte("l"), block.Hash)
+      if err != nil {
+        log.Panic(err)
+      }
+      bc.tip = block.Hash
+    }
+    return nil
+  })
+  if err != nil {
+    log.Panic(err)
+  }
 }
