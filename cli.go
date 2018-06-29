@@ -140,7 +140,7 @@ func (cli *CLI) Run() {
     bc := NewBlockchain(nodeID)
     bci := bc.Iterator()
     defer bc.db.Close()
-    for {
+    for !bci.IsDone {
       block := bci.Next()
       fmt.Printf("============ Block %x ============\n", block.Hash)
       // fmt.Printf("Height: %d\n", block.Height)
@@ -151,9 +151,6 @@ func (cli *CLI) Run() {
         fmt.Println(tx)
       }
       fmt.Printf("\n\n")
-      if len(block.PrevBlockHash) == 0 {
-        break
-      }
     }
   }
 

@@ -87,15 +87,12 @@ func NewBlockchain(nodeID string) *Blockchain {
 func (bc *Blockchain) FindTransaction(ID []byte) (Transaction, error) {
   bci := bc.Iterator()
 
-  for {
+  for !bci.IsDone {
     block := bci.Next()
     for _, tx := range block.Transactions {
       if bytes.Compare(tx.ID, ID) == 0 {
         return *tx, nil
       }
-    }
-    if len(block.PrevBlockHash) == 0 {
-      break
     }
   }
   return Transaction{}, errors.New("Transaction is not found")
@@ -119,7 +116,7 @@ func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
   UTXO := make(map[string]TXOutputs)
   spentTXOs := make(map[string][]int)
   bci := bc.Iterator()
-  for {
+  for !bci.IsDone {
     block := bci.Next()
     for _, tx := range block.Transactions {
       txID := hex.EncodeToString(tx.ID)
@@ -145,9 +142,6 @@ func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
         }
       }
     }
-    if len(block.PrevBlockHash) == 0 {
-      break
-    }
   }
   return UTXO
 }
@@ -155,6 +149,7 @@ func (bc *Blockchain) FindUTXO() map[string]TXOutputs {
 type BlockchainIterator struct {
   blockchain *Blockchain
   currentHash []byte
+  IsDone bool
 }
 
 func (bci *BlockchainIterator) Next() *Block {
@@ -168,11 +163,12 @@ func (bci *BlockchainIterator) Next() *Block {
     log.Panic(err)
   }
   bci.currentHash = block.PrevBlockHash
+  bci.IsDone = len(block.PrevBlockHash) == 0
   return &block
 }
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {
-  return &BlockchainIterator{bc, bc.tip}
+  return &BlockchainIterator{bc, bc.tip, false}
 }
 
 func (bc *Blockchain) MineBlock(txs []*Transaction) *Block{
@@ -224,7 +220,6 @@ func (bc *Blockchain) GetBestHeight() int{
   if err != nil {
     log.Panic(err)
   }
-
   return lastBlock.Height
 }
 
@@ -232,12 +227,9 @@ func (bc *Blockchain) GetBlockHashes() [][]byte {
   var blocks [][]byte
   bci := bc.Iterator()
 
-  for {
+  for !bci.IsDone {
     block := bci.Next()
     blocks = append(blocks, block.Hash)
-    if len(block.PrevBlockHash) == 0 {
-      break
-    }
   }
   return blocks
 }
