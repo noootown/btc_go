@@ -8,6 +8,8 @@ import (
   "encoding/hex"
   "crypto/ecdsa"
   "crypto/rand"
+  "crypto/elliptic"
+  "math/big"
 )
 
 const subsidy = 10
@@ -163,3 +165,44 @@ func (tx *Transaction) TrimmedCopy() Transaction {
   return Transaction{tx.ID, inputs, outputs}
 }
 
+// ????
+func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
+  if tx.IsCoinbase() {
+    return true
+  }
+
+  for _, vin := range tx.Vin {
+    if prevTXs[hex.EncodeToString(vin.TXid)].ID == nil {
+      log.Panic("ERROR: Previous transaction is not correct")
+    }
+  }
+
+  txCopy := tx.TrimmedCopy()
+  curve := elliptic.P256()
+
+  for inID, vin := range tx.Vin {
+    prevTx := prevTXs[hex.EncodeToString(vin.TXid)]
+    txCopy.Vin[inID].Signature = nil
+    txCopy.Vin[inID].PubKey = prevTx.Vout[vin.Vout].PubKeyHash
+
+    r, s := big.Int{}, big.Int{}
+    sigLen := len(vin.Signature)
+    r.SetBytes(vin.Signature[:(sigLen / 2)])
+    s.SetBytes(vin.Signature[(sigLen / 2):])
+
+    x, y := big.Int{}, big.Int{}
+    keyLen := len(vin.PubKey)
+    x.SetBytes(vin.PubKey[:(keyLen / 2)])
+    y.SetBytes(vin.PubKey[(keyLen / 2):])
+
+    dataToVerify := fmt.Sprintf("%x\n", txCopy)
+
+    rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
+    if ecdsa.Verify(&rawPubKey, []byte(dataToVerify), &r, &s) == false {
+      return false
+    }
+    txCopy.Vin[inID].PubKey = nil
+  }
+
+  return true
+}

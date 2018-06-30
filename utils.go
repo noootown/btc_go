@@ -80,3 +80,12 @@ func gobDecode(data [] byte, e interface{}) {
     log.Panic(err)
   }
 }
+
+func stringInSlice(item string, list []string) bool {
+  for _, l := range list {
+    if l == item {
+      return true
+    }
+  }
+  return false
+}
